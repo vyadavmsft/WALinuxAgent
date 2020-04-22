@@ -49,6 +49,7 @@ from azurelinuxagent.common.exception import ProtocolError, \
                                             UpdateError
 from azurelinuxagent.common.future import ustr
 from azurelinuxagent.common.osutil import get_osutil
+from azurelinuxagent.common.osutil.ubuntu import get_python_symlink_path_if_ubuntu_20_04_image
 from azurelinuxagent.common.protocol import get_protocol_util
 from azurelinuxagent.common.protocol.hostplugin import HostPluginProtocol
 from azurelinuxagent.common.protocol.wire import WireProtocol
@@ -285,6 +286,7 @@ class UpdateHandler(object):
             self._ensure_partition_assigned()
             self._ensure_readonly_files()
             self._ensure_cgroups_initialized()
+            self._add_sym_link_for_ub20_04()
 
             # Send OS-specific info as a telemetry event after the monitoring thread has been initialized, and with
             # it the container id too.
@@ -727,6 +729,38 @@ class UpdateHandler(object):
                 ustr(e))
 
         return pid_files, pid_file
+
+    @staticmethod
+    def _add_sym_link_for_ub20_04():
+        # Function to create a symlink for the python interpreter that the agent is running by
+        agent_dir_python_symlink_path = get_python_symlink_path_if_ubuntu_20_04_image()
+        if agent_dir_python_symlink_path is None:
+            # Not an Ubuntu 20.04 machine, skipping creating a symlink
+            return
+
+        msg = "Agent running on Ubuntu20.04, setting a python symlink in agent directory"
+        logger.info(msg)
+        add_event(
+            AGENT_NAME,
+            op=WALAEventOperation.Ubuntu2004_Image,
+            version=CURRENT_VERSION,
+            is_success=True,
+            message=msg)
+
+        if os.path.exists(agent_dir_python_symlink_path):
+            logger.info("Symlink to python interpreter already exists in agent dir {0}".format(agent_dir_python_symlink_path))
+            return
+
+        try:
+            # Create a symlink in agent directory which points to the Python interpreter path that the agent is running on
+            os.symlink(sys.executable, agent_dir_python_symlink_path)
+        except Exception as e:
+            add_event(
+                AGENT_NAME,
+                op=WALAEventOperation.Ubuntu2004_Image,
+                version=CURRENT_VERSION,
+                is_success=False,
+                message="Error while setting up a symlink: {0}".format(ustr(e)))
 
 
 class GuestAgent(object):
