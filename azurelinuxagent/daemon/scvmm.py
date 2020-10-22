@@ -45,7 +45,7 @@ class ScvmmHandler(object):
 
         # cycle through all available /dev/sr*|hd*|cdrom*|cd* looking for the scvmm configuration file
         mount_point = conf.get_dvd_mount_point()
-        for devices in filter(lambda x: x is not None, [re.match(r'(sr[0-9]|hd[c-z]|cdrom[0-9]?|cd[0-9]+)', dev) for dev in os.listdir(dev_dir)]):
+        for devices in filter(lambda x: x is not None, [re.match(r'(sr[0-9]|hd[c-z]|cdrom[0-9]?|cd[0-9]+|vd[b-z])', dev) for dev in os.listdir(dev_dir)]):
             dvd_device = os.path.join(dev_dir, devices.group(0))
             self.osutil.mount_dvd(max_retry=1, chk_err=False, dvd_device=dvd_device, mount_point=mount_point)
             found = os.path.isfile(os.path.join(mount_point, VMM_CONF_FILE_NAME))
